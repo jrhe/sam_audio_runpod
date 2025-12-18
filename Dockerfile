@@ -66,15 +66,12 @@ COPY handler.py /app/handler.py
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
-ENV HF_HOME=/app/huggingface_cache
-# HF_TOKEN should be set at runtime via RunPod environment variables
-# This allows the model to download gated weights from Hugging Face
 
-# Pre-download the model weights (optional - makes cold start faster but image larger)
-# Uncomment the following lines if you want to bake the model into the image
-# RUN python -c "from sam_audio import SAMAudio, SAMAudioProcessor; \
-#     SAMAudio.from_pretrained('facebook/sam-audio-large'); \
-#     SAMAudioProcessor.from_pretrained('facebook/sam-audio-large')"
+# Model loading options (in order of priority):
+# 1. RunPod Cached Models: Set endpoint "Cached Models" to the HF model URL
+#    (e.g., https://huggingface.co/facebook/sam-audio-large)
+#    The handler auto-detects and uses /runpod-volume/huggingface-cache/hub
+# 2. HF_TOKEN: Set at runtime for downloading gated models on-demand
 
 # Start the handler
 CMD ["python", "-u", "handler.py"]

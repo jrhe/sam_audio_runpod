@@ -29,12 +29,68 @@ import base64
 import os
 import tempfile
 import requests
-from io import BytesIO
+from pathlib import Path
+
+# RunPod Cached Models location (HF cache layout)
+CACHE_ROOT = Path("/runpod-volume/huggingface-cache/hub")
+
+# Configure HF to use RunPod's cache if it exists
+if CACHE_ROOT.exists():
+    print(f"Using RunPod cached models from: {CACHE_ROOT}")
+    # Set HF cache to RunPod's cache location
+    os.environ["HF_HUB_CACHE"] = str(CACHE_ROOT)
+    os.environ["HF_HOME"] = str(CACHE_ROOT.parent)
+    # Force offline mode - only load from cache
+    os.environ["HF_HUB_OFFLINE"] = "1"
+    os.environ["TRANSFORMERS_OFFLINE"] = "1"
+else:
+    print(f"RunPod cache not found at {CACHE_ROOT}, will download models")
 
 # Global model cache - loaded once on cold start
 MODEL = None
 PROCESSOR = None
 DEVICE = None
+
+
+def resolve_snapshot_path(model_id: str) -> Path | None:
+    """
+    Resolve the local snapshot path for a cached model.
+    Returns None if not found (will fall back to downloading).
+    """
+    if not CACHE_ROOT.exists():
+        return None
+    
+    # HF cache layout: models--{org}--{name}/snapshots/{revision}
+    org, name = model_id.split("/", 1)
+    model_dir = CACHE_ROOT / f"models--{org}--{name}"
+    
+    if not model_dir.exists():
+        print(f"Model cache dir not found: {model_dir}")
+        # Debug: show what exists
+        try:
+            existing = sorted([p.name for p in CACHE_ROOT.iterdir()])[:20]
+            print(f"Available in cache: {existing}")
+        except Exception:
+            pass
+        return None
+    
+    # Prefer refs/main when present
+    ref_main = model_dir / "refs" / "main"
+    if ref_main.exists():
+        rev = ref_main.read_text().strip()
+        snap = model_dir / "snapshots" / rev
+        if snap.exists():
+            print(f"Using cached snapshot: {snap}")
+            return snap
+    
+    # Fallback: first snapshot directory
+    snap_root = model_dir / "snapshots"
+    snaps = sorted(snap_root.glob("*")) if snap_root.exists() else []
+    if snaps:
+        print(f"Using cached snapshot: {snaps[0]}")
+        return snaps[0]
+    
+    return None
 
 
 def load_model(model_size: str = "large"):
@@ -47,20 +103,29 @@ def load_model(model_size: str = "large"):
     from sam_audio import SAMAudio, SAMAudioProcessor
     from huggingface_hub import login
     
-    # Authenticate with Hugging Face if token is available
-    # hf_token = os.environ.get("HF_TOKEN")
-    # if hf_token:
-    #     print("Authenticating with Hugging Face...")
-    #     login(token=hf_token)
-    # else:
-    #     print("Warning: HF_TOKEN not set. Model download may fail for gated models.")
-    
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Loading SAM Audio model (size: {model_size}) on device: {DEVICE}")
-    
     model_id = f"facebook/sam-audio-{model_size}"
-    MODEL = SAMAudio.from_pretrained(model_id).to(DEVICE).eval()
-    PROCESSOR = SAMAudioProcessor.from_pretrained(model_id)
+    
+    # Check for cached model first
+    snapshot_path = resolve_snapshot_path(model_id)
+    
+    if snapshot_path:
+        # Load from cached snapshot (offline)
+        print(f"Loading SAM Audio model from cache (size: {model_size}) on device: {DEVICE}")
+        MODEL = SAMAudio.from_pretrained(str(snapshot_path), local_files_only=True).to(DEVICE).eval()
+        PROCESSOR = SAMAudioProcessor.from_pretrained(str(snapshot_path), local_files_only=True)
+    else:
+        # Fall back to downloading (requires HF_TOKEN for gated models)
+        hf_token = os.environ.get("HF_TOKEN")
+        if hf_token:
+            print("Authenticating with Hugging Face...")
+            login(token=hf_token)
+        else:
+            print("Warning: HF_TOKEN not set. Model download may fail for gated models.")
+        
+        print(f"Downloading SAM Audio model (size: {model_size}) on device: {DEVICE}")
+        MODEL = SAMAudio.from_pretrained(model_id).to(DEVICE).eval()
+        PROCESSOR = SAMAudioProcessor.from_pretrained(model_id)
     
     print("Model loaded successfully!")
     return MODEL, PROCESSOR, DEVICE
