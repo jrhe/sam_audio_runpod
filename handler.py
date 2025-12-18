@@ -48,12 +48,12 @@ def load_model(model_size: str = "large"):
     from huggingface_hub import login
     
     # Authenticate with Hugging Face if token is available
-    hf_token = os.environ.get("HF_TOKEN")
-    if hf_token:
-        print("Authenticating with Hugging Face...")
-        login(token=hf_token)
-    else:
-        print("Warning: HF_TOKEN not set. Model download may fail for gated models.")
+    # hf_token = os.environ.get("HF_TOKEN")
+    # if hf_token:
+    #     print("Authenticating with Hugging Face...")
+    #     login(token=hf_token)
+    # else:
+    #     print("Warning: HF_TOKEN not set. Model download may fail for gated models.")
     
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Loading SAM Audio model (size: {model_size}) on device: {DEVICE}")
