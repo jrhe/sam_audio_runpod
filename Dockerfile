@@ -1,7 +1,7 @@
 # RunPod Serverless Dockerfile for SAM Audio
 # Based on PyTorch with CUDA support
 
-FROM runpod/pytorch:2.1.0-py3.11-cuda11.8.0-devel-ubuntu22.04
+FROM runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
 
 # Set working directory
 WORKDIR /app
@@ -16,12 +16,8 @@ RUN apt-get update && apt-get install -y \
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip
 
-# Install PyTorch and audio libraries
-RUN pip install --no-cache-dir \
-    torch==2.1.0 \
-    torchaudio==2.1.0 \
-    torchvision==0.16.0 \
-    --index-url https://download.pytorch.org/whl/cu118
+# Install torchaudio to match PyTorch version in base image
+RUN pip install --no-cache-dir torchaudio
 
 # Install core dependencies
 RUN pip install --no-cache-dir \
