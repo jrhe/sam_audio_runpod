@@ -1,7 +1,7 @@
 # RunPod Serverless Dockerfile for SAM Audio
 # Based on PyTorch with CUDA support
 
-FROM runpod/pytorch:2.1.0-py3.10-cuda11.8.0-devel-ubuntu22.04
+FROM runpod/pytorch:2.1.0-py3.11-cuda11.8.0-devel-ubuntu22.04
 
 # Set working directory
 WORKDIR /app
