@@ -1,0 +1,20 @@
+[project]
+name = "sam-service"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "torch",
+    "torchaudio",
+    "transformers",
+    "scipy",
+    "soundfile",
+    "torchcodec",
+    "torchdiffeq",
+    "descript-audiotools",
+    "eva-decord",
+    "sam-audio @ git+https://github.com/facebookresearch/sam-audio.git",
+    "perception-models @ git+https://github.com/facebookresearch/perception_models.git@unpin-deps",
+    "imagebind @ git+https://github.com/facebookresearch/ImageBind.git",
+    "dacvae @ git+https://github.com/facebookresearch/dacvae.git",
+]
+
